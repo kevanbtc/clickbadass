@@ -1,0 +1,72 @@
+# Logs and runtime data
+*.log
+.one-click-badass.log
+.one-click-badass/
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*~
+*.swp
+*.swo
+*.tmp
+.vscode/
+.idea/
+*.sublime-*
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Runtime/cache directories
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+.nyc_output/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.envrc
+
+# Build artifacts
+dist/
+build/
+*.o
+*.so
+*.dylib
+a.out
+
+# Package manager files
+package-lock.json  # if using npm
+yarn.lock          # if using yarn
+Pipfile.lock       # if using pipenv
+
+# OS-specific
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Testing
+test-results/
+coverage/
+*.lcov
+
+# Temporary files
+/tmp/
+temp/
+*.tmp
+*.temp

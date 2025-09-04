@@ -1,0 +1,17 @@
+name: CI
+on:
+  push: { branches: [ main ] }
+  pull_request: { branches: [ main ] }
+jobs:
+  lint-test:
+    strategy: { matrix: { os: [ubuntu-latest, macos-latest] } }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then brew update && brew install shellcheck; else sudo apt-get update && sudo apt-get install -y shellcheck; fi
+      - name: Lint setup.sh
+        run: shellcheck -S style setup.sh
+      - name: Dry-run smoke test
+        run: bash setup.sh --dry-run --all
