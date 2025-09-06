@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SiloProof Connect Demo - VC+NFT Dual-Rail</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/ethers@5.7.0/dist/ethers.umd.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .demo-grid { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card-glass {
+            backdrop-filter: blur(16px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .pulse-success {
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="demo-root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // Mock UPoF V2 NFT Data
+        const mockNFTData = {
+            tokenId: "42",
+            amount: "50000.00",
+            asset: "USDC",
+            holderAddress: "0x742d35Cc6634C0532925a3b8D93C7E8F476C4578",
+            expiry: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
+            kycCompliant: true,
+            sanctionsCleared: true,
+            custodian: "Coinbase Custody",
+            auditHash: "0x8f3b4e9a7c1d6f2e5b8a9c4d7e1f6a2b5c8e1a4b7c2d5e8f1a4b7c2d5e8f1a4b"
+        };
+
+        // Mock VC Data
+        const mockVCData = {
+            vcURI: "did:ethr:0x742d35Cc6634C0532925a3b8D93C7E8F476C4578/vc/pof-42",
+            credential: {
+                "@context": ["https://www.w3.org/2018/credentials/v1"],
+                type: ["VerifiableCredential", "ProofOfFundsCredential"],
+                issuer: {
+                    id: "did:ethr:0x123456789abcdef123456789abcdef123456789",
+                    name: "UnyKorn Proof of Funds Service"
+                },
+                issuanceDate: new Date().toISOString(),
+                expirationDate: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(),
+                credentialSubject: {
+                    id: "did:ethr:0x742d35Cc6634C0532925a3b8D93C7E8F476C4578",
+                    hasAsset: {
+                        type: "USDC",
+                        minimumAmount: "50000.00",
+                        currency: "USDC"
+                    },
+                    proofOfFunds: {
+                        tokenId: "42",
+                        verifiedAmount: "50000.00",
+                        custodian: "Coinbase Custody"
+                    },
+                    compliance: {
+                        kycApproved: true,
+                        sanctionsCleared: true,
+                        verifiedAt: new Date().toISOString()
+                    }
+                }
+            }
+        };
+
+        // Demo Component
+        const SiloProofDualRailDemo = () => {
+            const [activeTab, setActiveTab] = useState('overview');
+            const [verificationStatus, setVerificationStatus] = useState('idle');
+            const [nftVerified, setNftVerified] = useState(false);
+            const [vcVerified, setVcVerified] = useState(false);
+
+            const simulateNFTVerification = useCallback(async () => {
+                setVerificationStatus('loading');
+                // Simulate blockchain call delay
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                setNftVerified(true);
+            }, []);
+
+            const simulateVCVerification = useCallback(async () => {
+                // Simulate VC verification delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                setVcVerified(true);
+                setVerificationStatus('verified');
+            }, []);
+
+            const runDualVerification = async () => {
+                setVerificationStatus('loading');
+                setNftVerified(false);
+                setVcVerified(false);
+                
+                // Run both verifications in parallel
+                await Promise.all([
+                    simulateNFTVerification(),
+                    simulateVCVerification()
+                ]);
+            };
+
+            const formatAmount = (amount, currency = 'USDC') => {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: currency === 'USDC' ? 'USD' : currency
+                }).format(parseFloat(amount));
+            };
+
+            return (
+                <div className="demo-grid">
+                    <div className="container mx-auto px-6 py-8">
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-bold text-white mb-4">
+                                SiloProof Connect Demo
+                            </h1>
+                            <p className="text-xl text-gray-200 mb-2">
+                                VC + NFT Dual-Rail Verification System
+                            </p>
+                            <p className="text-gray-300">
+                                Demonstrating UPoF V2 integration with W3C Verifiable Credentials
+                            </p>
+                        </div>
+
+                        {/* Tab Navigation */}
+                        <div className="flex justify-center mb-8">
+                            <div className="flex space-x-1 card-glass rounded-lg p-1">
+                                {['overview', 'nft-rail', 'vc-rail', 'dual-verify'].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            activeTab === tab
+                                                ? 'bg-white text-gray-900'
+                                                : 'text-gray-200 hover:text-white'
+                                        }`}
+                                    >
+                                        {tab.replace('-', ' ').toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="max-w-6xl mx-auto">
+                            {activeTab === 'overview' && (
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div className="card-glass rounded-lg p-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">🏦 Traditional NFT</h3>
+                                        <p className="text-gray-200 mb-4">
+                                            UPoF V2 system using blockchain NFTs for proof of funds
+                                        </p>
+                                        <div className="space-y-2 text-sm text-gray-300">
+                                            <div>✓ On-chain verification</div>
+                                            <div>✓ Immutable records</div>
+                                            <div>✓ Gas costs apply</div>
+                                            <div>✓ Public blockchain</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="card-glass rounded-lg p-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">🆔 Verifiable Credentials</h3>
+                                        <p className="text-gray-200 mb-4">
+                                            W3C standard VCs with EIP-712 signatures for privacy
+                                        </p>
+                                        <div className="space-y-2 text-sm text-gray-300">
+                                            <div>✓ Privacy-preserving</div>
+                                            <div>✓ Selective disclosure</div>
+                                            <div>✓ Zero gas costs</div>
+                                            <div>✓ Standards compliant</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="card-glass rounded-lg p-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">🔄 Dual-Rail System</h3>
+                                        <p className="text-gray-200 mb-4">
+                                            Best of both worlds: blockchain security + VC privacy
+                                        </p>
+                                        <div className="space-y-2 text-sm text-gray-300">
+                                            <div>✓ Cross-verification</div>
+                                            <div>✓ Redundant proof</div>
+                                            <div>✓ User choice</div>
+                                            <div>✓ Future-ready</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'nft-rail' && (
+                                <div className="card-glass rounded-lg p-8">
+                                    <h2 className="text-2xl font-semibold text-white mb-6">🏦 NFT Rail Verification</h2>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div>
+                                            <h3 className="text-lg font-medium text-white mb-4">Token Details</h3>
+                                            <div className="space-y-3 text-gray-200">
+                                                <div className="flex justify-between">
+                                                    <span>Token ID:</span>
+                                                    <span className="font-mono">#{mockNFTData.tokenId}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Amount:</span>
+                                                    <span className="font-semibold text-green-400">
+                                                        {formatAmount(mockNFTData.amount, mockNFTData.asset)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Asset:</span>
+                                                    <span>{mockNFTData.asset}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Custodian:</span>
+                                                    <span>{mockNFTData.custodian}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-lg font-medium text-white mb-4">Compliance Status</h3>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-gray-200">KYC Status:</span>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                        mockNFTData.kycCompliant 
+                                                            ? 'bg-green-500 text-white' 
+                                                            : 'bg-red-500 text-white'
+                                                    }`}>
+                                                        {mockNFTData.kycCompliant ? 'APPROVED' : 'PENDING'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-gray-200">Sanctions:</span>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                        mockNFTData.sanctionsCleared 
+                                                            ? 'bg-green-500 text-white' 
+                                                            : 'bg-red-500 text-white'
+                                                    }`}>
+                                                        {mockNFTData.sanctionsCleared ? 'CLEAR' : 'FLAGGED'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-8 p-4 bg-gray-800 rounded-lg">
+                                        <div className="text-xs text-gray-400 mb-2">Holder Address:</div>
+                                        <div className="font-mono text-sm text-gray-200 break-all">
+                                            {mockNFTData.holderAddress}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'vc-rail' && (
+                                <div className="card-glass rounded-lg p-8">
+                                    <h2 className="text-2xl font-semibold text-white mb-6">🆔 VC Rail Verification</h2>
+                                    
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="text-lg font-medium text-white mb-4">Credential Information</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <span className="text-gray-300">Issuer:</span>
+                                                        <div className="text-sm text-gray-200 mt-1">
+                                                            {mockVCData.credential.issuer.name}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-300">Type:</span>
+                                                        <div className="text-sm text-gray-200 mt-1">
+                                                            {mockVCData.credential.type.join(', ')}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <span className="text-gray-300">Issued:</span>
+                                                        <div className="text-sm text-gray-200 mt-1">
+                                                            {new Date(mockVCData.credential.issuanceDate).toLocaleDateString()}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-300">Expires:</span>
+                                                        <div className="text-sm text-gray-200 mt-1">
+                                                            {new Date(mockVCData.credential.expirationDate).toLocaleDateString()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-lg font-medium text-white mb-4">Claims Summary</h3>
+                                            <div className="bg-gray-800 rounded-lg p-4 space-y-2">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-gray-400">Asset Type:</span>
+                                                    <span className="text-gray-200">
+                                                        {mockVCData.credential.credentialSubject.hasAsset.type}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-gray-400">Minimum Amount:</span>
+                                                    <span className="text-green-400 font-semibold">
+                                                        {formatAmount(mockVCData.credential.credentialSubject.hasAsset.minimumAmount)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-gray-400">KYC Status:</span>
+                                                    <span className="text-green-400">
+                                                        {mockVCData.credential.credentialSubject.compliance.kycApproved ? 'Approved' : 'Pending'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'dual-verify' && (
+                                <div className="card-glass rounded-lg p-8">
+                                    <h2 className="text-2xl font-semibold text-white mb-6">🔄 Dual-Rail Verification</h2>
+                                    
+                                    <div className="text-center mb-8">
+                                        <button
+                                            onClick={runDualVerification}
+                                            disabled={verificationStatus === 'loading'}
+                                            className={`px-8 py-4 rounded-lg text-lg font-semibold transition-all ${
+                                                verificationStatus === 'loading'
+                                                    ? 'bg-blue-500 text-white cursor-not-allowed'
+                                                    : verificationStatus === 'verified'
+                                                    ? 'bg-green-500 text-white pulse-success'
+                                                    : 'bg-white text-gray-900 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            {verificationStatus === 'loading' ? 'Verifying...' : 
+                                             verificationStatus === 'verified' ? 'Verified ✓' : 
+                                             'Start Dual Verification'}
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        {/* NFT Verification Status */}
+                                        <div className={`p-6 rounded-lg border-2 transition-all ${
+                                            nftVerified 
+                                                ? 'border-green-500 bg-green-500/10' 
+                                                : verificationStatus === 'loading'
+                                                ? 'border-blue-500 bg-blue-500/10'
+                                                : 'border-gray-600 bg-gray-800/50'
+                                        }`}>
+                                            <div className="flex items-center mb-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                                                    nftVerified ? 'bg-green-500' : 
+                                                    verificationStatus === 'loading' ? 'bg-blue-500 animate-pulse' : 'bg-gray-600'
+                                                }`}>
+                                                    {nftVerified ? '✓' : verificationStatus === 'loading' ? '⟳' : '○'}
+                                                </div>
+                                                <h3 className="text-lg font-medium text-white">NFT Verification</h3>
+                                            </div>
+                                            <div className="space-y-2 text-sm text-gray-300">
+                                                <div>• Blockchain query for token #{mockNFTData.tokenId}</div>
+                                                <div>• Asset amount verification</div>
+                                                <div>• Holder address validation</div>
+                                                <div>• Expiry date check</div>
+                                            </div>
+                                        </div>
+
+                                        {/* VC Verification Status */}
+                                        <div className={`p-6 rounded-lg border-2 transition-all ${
+                                            vcVerified 
+                                                ? 'border-green-500 bg-green-500/10' 
+                                                : verificationStatus === 'loading'
+                                                ? 'border-blue-500 bg-blue-500/10'
+                                                : 'border-gray-600 bg-gray-800/50'
+                                        }`}>
+                                            <div className="flex items-center mb-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                                                    vcVerified ? 'bg-green-500' : 
+                                                    verificationStatus === 'loading' ? 'bg-blue-500 animate-pulse' : 'bg-gray-600'
+                                                }`}>
+                                                    {vcVerified ? '✓' : verificationStatus === 'loading' ? '⟳' : '○'}
+                                                </div>
+                                                <h3 className="text-lg font-medium text-white">VC Verification</h3>
+                                            </div>
+                                            <div className="space-y-2 text-sm text-gray-300">
+                                                <div>• EIP-712 signature validation</div>
+                                                <div>• Issuer DID resolution</div>
+                                                <div>• Claims verification</div>
+                                                <div>• Revocation status check</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {verificationStatus === 'verified' && (
+                                        <div className="mt-8 p-6 bg-green-500/20 border border-green-500 rounded-lg">
+                                            <h3 className="text-lg font-semibold text-green-400 mb-3">
+                                                ✅ Dual Verification Complete
+                                            </h3>
+                                            <div className="text-gray-200 text-sm">
+                                                Both verification methods confirm: User holds {formatAmount(mockNFTData.amount, mockNFTData.asset)} 
+                                                in {mockNFTData.asset} with valid KYC and sanctions clearance.
+                                                <br /><br />
+                                                <strong>Cross-validation successful:</strong> NFT token #{mockNFTData.tokenId} 
+                                                matches VC claims with identical asset amounts and compliance status.
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="text-center mt-16 text-gray-400">
+                            <p className="text-sm">
+                                SiloProof Connect Demo • Built for SiloCloud Integration Strategy
+                            </p>
+                            <p className="text-xs mt-2">
+                                Demonstrating UPoF V2 + W3C Verifiable Credentials dual-rail verification
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the demo
+        ReactDOM.render(<SiloProofDualRailDemo />, document.getElementById('demo-root'));
+    </script>
+</body>
+</html>

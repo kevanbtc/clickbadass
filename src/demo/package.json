@@ -1,0 +1,28 @@
+{
+  "name": "siloproof-demo",
+  "version": "1.0.0",
+  "description": "SiloProof Connect Demo - VC+NFT Dual-Rail Verification System",
+  "main": "verification-server.js",
+  "scripts": {
+    "start": "node verification-server.js",
+    "dev": "nodemon verification-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "ethers": "^5.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "keywords": [
+    "verifiable-credentials",
+    "proof-of-funds",
+    "blockchain",
+    "nft",
+    "silocloud",
+    "demo"
+  ],
+  "author": "UnyKorn Team",
+  "license": "MIT"
+}
